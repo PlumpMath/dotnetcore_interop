@@ -9,7 +9,7 @@ namespace ConsoleApplication
             Console.WriteLine("Printing from an Interop");
             
             var interop = new libSTE();
-            interop.TestString();
+            interop.Demo();
 
 
         //    var t = new InteropTests();
