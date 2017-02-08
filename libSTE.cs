@@ -39,6 +39,12 @@ namespace ConsoleApplication
         private static extern unsafe IntPtr ste_set_federal(IntPtr ste, bool exemptStatus, int filingStatus, int numAllowances, bool roundOption, double additionalWH, double ytd, double mostRecentWH );
 
         [DllImport(LIBSTE, CharSet = CharSet.Ansi)]
+        private static extern unsafe IntPtr ste_set_medicare(IntPtr ste, bool exemptStatus, double ytd );
+
+        [DllImport(LIBSTE, CharSet = CharSet.Ansi)]
+        private static extern unsafe IntPtr ste_set_eic(IntPtr ste, int filingStatus, double ytd, bool filingJointly );
+
+        [DllImport(LIBSTE, CharSet = CharSet.Ansi)]
         private static extern unsafe IntPtr ste_set_fica(IntPtr ste, bool exemptStatusEE, bool exemptStatusER, double ytdEE, double ytdER, bool autoAdjust );
 
         [DllImport(LIBSTE)]
@@ -47,6 +53,11 @@ namespace ConsoleApplication
          [DllImport(LIBSTE)]
         private static extern unsafe double ste_get_fica(IntPtr ste);
 
+         [DllImport(LIBSTE)]
+        private static extern unsafe double ste_get_medicare(IntPtr ste);
+
+        [DllImport(LIBSTE)]
+        private static extern unsafe double ste_get_federal(IntPtr ste, [Out, MarshalAs(UnmanagedType.R8)] out double fitCTD,  [Out, MarshalAs(UnmanagedType.R8)] out double  supplementalCTD);
 
         internal static unsafe void SetPayrollParameters(IntPtr ste)
         {
@@ -90,12 +101,43 @@ namespace ConsoleApplication
 
             ste_set_fica(result, false, false, 100, 200, false);
 
+            ste_set_medicare(result, false, 0);
+
+            ste_set_eic(result, (int)EIC.ste_EIC_None, 0, false);
+
             ste_calculate(result);
 
-            var r = ste_get_fica(result);
+            Console.WriteLine("FICA Withholding: {0}", ste_get_fica(result));
 
-            Console.WriteLine("FICA Withholding: " + r.ToString());
+            Console.WriteLine("Medicare Withholding: {0}", ste_get_medicare(result));
 
+            Console.WriteLine("Federal Withholding: {0}", get_federal(result));
+
+            Console.WriteLine("");
+        }
+
+        /// <summary>
+        ///  This method gets the federal withholdings,
+        /// the signature supports the result value from a pointer, to do this we have to make the parameter to be
+        /// MarshalAs(UnmanagedType.R8) (R8 is double), Out, because its an out param, and the out C# modifier to properly get the result values.
+        /// For the following .h signature:
+        /// <code>
+        ///     ste_get_federal(const ste_handle *ste, double *fitCTD, double *supplementalCTD);
+        /// </code>
+        /// The DllImport should be:
+        ///  <code>
+        ///     ste_get_federal(IntPtr ste, [Out, MarshalAs(UnmanagedType.R8)] out double fitCTD,  [Out, MarshalAs(UnmanagedType.R8)] out double  supplementalCTD);
+        /// </code>
+        /// </summary>
+        /// <param name="handle"></param>
+        /// <returns></returns>
+        internal static unsafe double get_federal(IntPtr handle)
+        {
+            double fitCTD = 0, supplementalCTD = 0, result = 0;
+
+            result = ste_get_federal(handle, out fitCTD, out supplementalCTD);
+            
+            return result;
         }
 
         internal static  unsafe void version(IntPtr handle)
@@ -158,11 +200,19 @@ namespace ConsoleApplication
         public struct ste_handle {
         }   
 
+        enum EIC
+        {
+            ste_EIC_None = 0,
+            ste_EIC_Single=1,
+            ste_EIC_Married_One_Certificate	= 2,
+            ste_EIC_Married_Two_Certificates = 3
+        }
+
         enum Filing{
-            ste_FED_Single	=1,				
-ste_FED_Married					=2,
-ste_FED_Married_Use_Single_Rate	=3,
-ste_FED_NonresidentAlien		=4
+            ste_FED_Single	= 1,
+            ste_FED_Married =2,
+            ste_FED_Married_Use_Single_Rate	= 3,
+            ste_FED_NonresidentAlien =4
         }
         enum ste_WAGE_Type{
             ste_WAGE_Regular = 1
