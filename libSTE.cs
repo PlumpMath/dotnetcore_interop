@@ -139,7 +139,11 @@ namespace ConsoleApplication
             
             return result;
         }
-
+        
+        /// <summary>
+        /// /// This version is more verbose but the Marshaling of types is better. Marshal.PtrToStringUTF8 ignores bytes 0
+        /// </summary>
+        /// <param name="handle"></param>
         internal static  unsafe void version(IntPtr handle)
         {
 
@@ -173,11 +177,7 @@ namespace ConsoleApplication
 
             Console.WriteLine("Version: " + result);
         }
-
-        /// <summary>
-        /// This version is more verbose but the Marshaling of types is better. Marshal.PtrToStringUTF8 ignores bytes 0
-        /// </summary>
-        /// <param name="handle"></param>
+        
         internal static  unsafe void license(IntPtr handle)
         {
 
