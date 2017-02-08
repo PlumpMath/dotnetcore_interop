@@ -90,37 +90,32 @@ namespace ConsoleApplication
 
             const string FED_LOCATION_CODE = "00-000-00000";
             
-            var result = ste_init("/home/leo/ste/ste-root/");
+            var ste = ste_init("/home/leo/ste/ste-root/");
             
-            if(result == IntPtr.Zero){
+            if(ste == IntPtr.Zero){
                 Console.WriteLine("Unable to start STE");
                 return;
             }
 
-            var handle = (ste_handle) Marshal.PtrToStructure(result, typeof(ste_handle));
+            var handle = (ste_handle) Marshal.PtrToStructure(ste, typeof(ste_handle));
 
             Console.WriteLine("STE Initialized");
 
-            version(result);
-            version2(result);
+            ste_set_payroll_run_parameters(ste, "2013-01-01", 52, 1);
 
-            license(result);
+            ste_clear_calculations(ste);
+
+            ste_set_calcmethod(ste, FED_LOCATION_CODE, (int)ste_CALC_Method.ste_CALC_Method_Annualized,(int)ste_CALC_Method.ste_CALC_Method_None);
             
-            ste_set_payroll_run_parameters(result, "2013-01-01", 52, 1);
+            ste_set_wages(ste, FED_LOCATION_CODE, (int)ste_WAGE_Type.ste_WAGE_Regular, 40, 5000, 0, 0, 0);
 
-            ste_clear_calculations(result);
+            ste_set_federal(ste, false, (int)Filing.ste_FED_Married, 5, true, 0, 0, 0);
 
-            ste_set_calcmethod(result, FED_LOCATION_CODE, (int)ste_CALC_Method.ste_CALC_Method_Annualized,(int)ste_CALC_Method.ste_CALC_Method_None);
-            
-            ste_set_wages(result, FED_LOCATION_CODE, (int)ste_WAGE_Type.ste_WAGE_Regular, 40, 5000, 0, 0, 0);
+            ste_set_fica(ste, false, false, 100, 200, false);
 
-            ste_set_federal(result, false, (int)Filing.ste_FED_Married, 5, true, 0, 0, 0);
+            ste_set_medicare(ste, false, 0);
 
-            ste_set_fica(result, false, false, 100, 200, false);
-
-            ste_set_medicare(result, false, 0);
-
-            ste_set_eic(result, (int)EIC.ste_EIC_None, 0, false);
+            ste_set_eic(ste, (int)EIC.ste_EIC_None, 0, false);
 
             //The location code for Indianapolis, Indiana (Marion County)
             //is "18-097-452890"
@@ -128,38 +123,44 @@ namespace ConsoleApplication
             //The county GNIS code is 097
             //The city GNIS code is 452890
 
-            ste_set_state(result, "18-097-452890", true, false, (int)Rounding.ste_STATE_DefaultRounding, 0, 0, 0,false);
+            ste_set_state(ste, "18-097-452890", true, false, (int)Rounding.ste_STATE_DefaultRounding, 0, 0, 0,false);
 
-            ste_set_calcmethod(result, "18-097-452890", (int)ste_CALC_Method.ste_CALC_Method_Annualized, (int)ste_CALC_Method.ste_CALC_Method_None);
+            ste_set_calcmethod(ste, "18-097-452890", (int)ste_CALC_Method.ste_CALC_Method_Annualized, (int)ste_CALC_Method.ste_CALC_Method_None);
 
-            ste_set_wages(result, "18-097-452890", (int)ste_WAGE_Type.ste_WAGE_Regular, 40, 5000, 0, 0, 0);
+            ste_set_wages(ste, "18-097-452890", (int)ste_WAGE_Type.ste_WAGE_Regular, 40, 5000, 0, 0, 0);
 
             // The miscellaneous parameters vary by state
             // Indiana requires the following two parameters to withhold state tax
 
-            ste_set_state_misc(result, "18-097-452890", "PERSONALEXEMPTIONS", "1");
+            ste_set_state_misc(ste, "18-097-452890", "PERSONALEXEMPTIONS", "1");
 
-            ste_set_state_misc(result, "18-097-452890", "DEPENDENTEXEMPTIONS", "2");
+            ste_set_state_misc(ste, "18-097-452890", "DEPENDENTEXEMPTIONS", "2");
 
-            ste_set_county(result, "18-097-452890", false, true);
+            ste_set_county(ste, "18-097-452890", false, true);
 
-            ste_calculate(result);
+            ste_calculate(ste);
 
-            Console.WriteLine("FICA Withholding: {0}", ste_get_fica(result));
+            Console.WriteLine("STE Version: {0}", version(ste));
 
-            Console.WriteLine("Medicare Withholding: {0}", ste_get_medicare(result));
+            Console.WriteLine("STE Version: {0}", version2(ste));
 
-            Console.WriteLine("Federal Withholding: {0}", get_federal(result));
+            Console.WriteLine("STE License: {0}", license(ste));
 
-            Console.WriteLine("Earned Inc. Credit: {0}", ste_get_eic(result));
+            Console.WriteLine("FICA Withholding: {0}", ste_get_fica(ste));
 
-            Console.WriteLine("State Withholding {0}", get_state(result));
+            Console.WriteLine("Medicare Withholding: {0}", ste_get_medicare(ste));
 
-            Console.WriteLine("County Withholding {0}", get_county(result));
+            Console.WriteLine("Federal Withholding: {0}", get_federal(ste));
+
+            Console.WriteLine("Earned Inc. Credit: {0}", ste_get_eic(ste));
+
+            Console.WriteLine("State Withholding: {0}", get_state(ste, "18-097-452890"));
+
+            Console.WriteLine("County Withholding: {0}", get_county(ste, "18-097-452890"));
 
             Console.WriteLine("");
             
-            ste_quit(result);
+            ste_quit(ste);
         }
 
         /// <summary>
@@ -186,20 +187,20 @@ namespace ConsoleApplication
             return result;
         }
 
-        internal static unsafe double get_state(IntPtr handle)
+        internal static unsafe double get_state(IntPtr handle, string locationCode)
         {
             double sitCTD = 0, sitSupplementalCTD = 0, result = 0;
 
-            result = ste_get_state(handle, "18-097-452890",out sitCTD, out sitSupplementalCTD);
+            result = ste_get_state(handle, locationCode,out sitCTD, out sitSupplementalCTD);
             
             return result;
         }
 
-        internal static unsafe double get_county(IntPtr handle)
+        internal static unsafe double get_county(IntPtr handle, string locationCode)
         {
             double countyCTD = 0, countySupplementalCTD = 0, result = 0;
 
-            result = ste_get_county(handle, "18-097-452890",out countyCTD, out countySupplementalCTD);
+            result = ste_get_county(handle, locationCode,out countyCTD, out countySupplementalCTD);
             
             return result;
         }
@@ -208,7 +209,7 @@ namespace ConsoleApplication
         /// /// This version is more verbose but the Marshaling of types is better. Marshal.PtrToStringUTF8 ignores bytes 0
         /// </summary>
         /// <param name="handle"></param>
-        internal static  unsafe void version(IntPtr handle)
+        internal static  unsafe string version(IntPtr handle)
         {
 
             string result = String.Empty;
@@ -222,7 +223,7 @@ namespace ConsoleApplication
               result = Marshal.PtrToStringUTF8(resultPtr);
             }
 
-            Console.WriteLine("Version: " + result);
+            return result;
         }
 
 
@@ -232,17 +233,17 @@ namespace ConsoleApplication
         /// or we can trim the empty chars of the result string and keep the big array
         /// </summary>
         /// <param name="handle"></param>
-        internal static  unsafe void version2(IntPtr handle)
+        internal static  unsafe string version2(IntPtr handle)
         {
             var version = new byte[100];
 
             ste_version2(handle,  version);
             var result = System.Text.Encoding.UTF8.GetString(version).Trim(new char[] { '\0' });;
 
-            Console.WriteLine("Version: " + result);
+            return result;
         }
         
-        internal static  unsafe void license(IntPtr handle)
+        internal static  unsafe string license(IntPtr handle)
         {
 
             string result = String.Empty;
@@ -256,7 +257,7 @@ namespace ConsoleApplication
                 result = Marshal.PtrToStringUTF8(resultPtr);
             }
 
-            Console.WriteLine("License: " + result);
+            return result;
         }
 
 
